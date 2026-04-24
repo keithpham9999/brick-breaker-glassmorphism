@@ -2,6 +2,7 @@
 
 | Ngày | Chủ đề | File | Tags |
 | :--- | :--- | :--- | :--- |
+| 2026-04-24 | Mở rộng Game Loop và State cho Power-ups | 2026-04-24_power-ups-system.md | game, logic, state |
 
 ## Bộ Tag Chuẩn Hóa
 

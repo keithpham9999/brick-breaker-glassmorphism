@@ -28,6 +28,17 @@ const GAME_CONFIG = {
         POINTS: 10,
         COLORS: ['#ff007f', '#00f0ff', '#7000ff', '#00ff66', '#ffaa00']
     },
+    POWER_UP: {
+        SPEED: 2,
+        SIZE: 20,
+        DROP_CHANCE: 0.15,
+        DURATION: 10000,
+        TYPES: {
+            EXPAND: { type: 'EXPAND', color: '#00f0ff', text: 'E' },
+            SPEED: { type: 'SPEED', color: '#ffaa00', text: 'S' },
+            LIFE: { type: 'LIFE', color: '#00ff66', text: 'L' }
+        }
+    },
     GAME: {
         INITIAL_LIVES: 3
     }
@@ -59,10 +70,14 @@ const gameState = {
     score: 0,
     lives: GAME_CONFIG.GAME.INITIAL_LIVES,
     requestID: null,
-    bricks: []
+    bricks: [],
+    powerUps: [],
+    activeEffects: [],
+    floatingTexts: []
 };
 
 const paddle = {
+    width: GAME_CONFIG.PADDLE.WIDTH,
     x: (canvas.width - GAME_CONFIG.PADDLE.WIDTH) / 2,
     y: canvas.height - GAME_CONFIG.PADDLE.HEIGHT - GAME_CONFIG.PADDLE.MARGIN_BOTTOM,
     isMovingRight: false,
@@ -101,7 +116,7 @@ function resetBallAndPaddle() {
     ball.dx = GAME_CONFIG.BALL.START_SPEED_X * direction;
     ball.dy = GAME_CONFIG.BALL.START_SPEED_Y;
     
-    paddle.x = (canvas.width - GAME_CONFIG.PADDLE.WIDTH) / 2;
+    paddle.x = (canvas.width - paddle.width) / 2;
 }
 
 // --- Event Listeners ---
@@ -134,8 +149,8 @@ function handleKeyUp(event) {
 function handleMouseMove(event) {
     const relativeX = event.clientX - canvas.getBoundingClientRect().left;
     if (relativeX > 0 && relativeX < canvas.width) {
-        let newPaddleX = relativeX - GAME_CONFIG.PADDLE.WIDTH / 2;
-        paddle.x = Math.max(0, Math.min(newPaddleX, canvas.width - GAME_CONFIG.PADDLE.WIDTH));
+        let newPaddleX = relativeX - paddle.width / 2;
+        paddle.x = Math.max(0, Math.min(newPaddleX, canvas.width - paddle.width));
     }
 }
 
@@ -146,11 +161,95 @@ function updatePhysics() {
     handleWallCollisions();
     handlePaddleCollision();
     handleBrickCollisions();
+    updatePowerUps();
+    updateEffects();
+    updateFloatingTexts();
     checkGameOverConditions();
 }
 
+function updatePowerUps() {
+    for (let i = gameState.powerUps.length - 1; i >= 0; i--) {
+        let pu = gameState.powerUps[i];
+        pu.y += GAME_CONFIG.POWER_UP.SPEED;
+
+        // Check paddle collision
+        if (pu.y + pu.height >= paddle.y && pu.y <= paddle.y + GAME_CONFIG.PADDLE.HEIGHT &&
+            pu.x + pu.width >= paddle.x && pu.x <= paddle.x + paddle.width) {
+            applyPowerUpEffect(pu);
+            gameState.powerUps.splice(i, 1);
+            continue;
+        }
+
+        // Out of bounds
+        if (pu.y > canvas.height) {
+            gameState.powerUps.splice(i, 1);
+        }
+    }
+}
+
+function applyPowerUpEffect(pu) {
+    let text = "";
+    if (pu.type === 'LIFE') {
+        gameState.lives++;
+        UI.lives.innerText = gameState.lives;
+        text = "+1 LIFE";
+    } else {
+        const endTime = Date.now() + GAME_CONFIG.POWER_UP.DURATION;
+        let existing = gameState.activeEffects.find(e => e.type === pu.type);
+        if (existing) {
+            existing.endTime = endTime;
+        } else {
+            gameState.activeEffects.push({ type: pu.type, endTime: endTime });
+            if (pu.type === 'EXPAND') {
+                paddle.x -= paddle.width * 0.25; 
+                paddle.width *= 1.5;
+            } else if (pu.type === 'SPEED') {
+                ball.dx *= 1.3;
+                ball.dy *= 1.3;
+            }
+        }
+        text = pu.type === 'EXPAND' ? "EXPAND!" : "SPEED UP!";
+    }
+    
+    gameState.floatingTexts.push({
+        x: paddle.x + paddle.width / 2,
+        y: paddle.y - 10,
+        text: text,
+        color: pu.color,
+        alpha: 1.0
+    });
+}
+
+function updateEffects() {
+    const now = Date.now();
+    for (let i = gameState.activeEffects.length - 1; i >= 0; i--) {
+        let effect = gameState.activeEffects[i];
+        if (now > effect.endTime) {
+            if (effect.type === 'EXPAND') {
+                paddle.width /= 1.5;
+                paddle.x += paddle.width * 0.25; 
+            } else if (effect.type === 'SPEED') {
+                ball.dx /= 1.3;
+                ball.dy /= 1.3;
+            }
+            gameState.activeEffects.splice(i, 1);
+        }
+    }
+}
+
+function updateFloatingTexts() {
+    for (let i = gameState.floatingTexts.length - 1; i >= 0; i--) {
+        let ft = gameState.floatingTexts[i];
+        ft.y -= 1;
+        ft.alpha -= 0.015;
+        if (ft.alpha <= 0) {
+            gameState.floatingTexts.splice(i, 1);
+        }
+    }
+}
+
 function updatePaddlePosition() {
-    if (paddle.isMovingRight && paddle.x < canvas.width - GAME_CONFIG.PADDLE.WIDTH) {
+    if (paddle.isMovingRight && paddle.x < canvas.width - paddle.width) {
         paddle.x += GAME_CONFIG.PADDLE.SPEED;
     } else if (paddle.isMovingLeft && paddle.x > 0) {
         paddle.x -= GAME_CONFIG.PADDLE.SPEED;
@@ -175,11 +274,11 @@ function handleWallCollisions() {
 
 function handlePaddleCollision() {
     const isBallAtPaddleLevel = ball.y + ball.dy > paddle.y - GAME_CONFIG.BALL.RADIUS;
-    const isBallWithinPaddleWidth = ball.x > paddle.x && ball.x < paddle.x + GAME_CONFIG.PADDLE.WIDTH;
+    const isBallWithinPaddleWidth = ball.x > paddle.x && ball.x < paddle.x + paddle.width;
 
     if (isBallAtPaddleLevel && isBallWithinPaddleWidth) {
         // Calculate hit point for angle adjustment
-        const hitPoint = ball.x - (paddle.x + GAME_CONFIG.PADDLE.WIDTH / 2);
+        const hitPoint = ball.x - (paddle.x + paddle.width / 2);
         ball.dx = hitPoint * GAME_CONFIG.BALL.PADDLE_HIT_MULTIPLIER;
         ball.dy = -ball.dy;
     }
@@ -204,6 +303,21 @@ function checkSingleBrickCollision(brick) {
         ball.dy = -ball.dy;
         brick.isDestroyed = true;
         increaseScore();
+        spawnPowerUp(brick.x + GAME_CONFIG.BRICK.WIDTH / 2, brick.y + GAME_CONFIG.BRICK.HEIGHT / 2);
+    }
+}
+
+function spawnPowerUp(x, y) {
+    if (Math.random() < GAME_CONFIG.POWER_UP.DROP_CHANCE) {
+        const types = Object.values(GAME_CONFIG.POWER_UP.TYPES);
+        const randomType = types[Math.floor(Math.random() * types.length)];
+        gameState.powerUps.push({
+            x: x - GAME_CONFIG.POWER_UP.SIZE / 2,
+            y: y,
+            width: GAME_CONFIG.POWER_UP.SIZE,
+            height: GAME_CONFIG.POWER_UP.SIZE,
+            ...randomType
+        });
     }
 }
 
@@ -235,8 +349,46 @@ function checkGameOverConditions() {
 function renderGraphics() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     renderBricks();
+    renderPowerUps();
     renderBall();
     renderPaddle();
+    renderFloatingTexts();
+}
+
+function renderPowerUps() {
+    for (let pu of gameState.powerUps) {
+        ctx.beginPath();
+        ctx.roundRect(pu.x, pu.y, pu.width, pu.height, 4);
+        ctx.fillStyle = pu.color;
+        ctx.globalAlpha = 0.8;
+        ctx.shadowColor = pu.color;
+        ctx.shadowBlur = 10;
+        ctx.fill();
+        
+        ctx.fillStyle = "#fff";
+        ctx.font = "bold 12px Orbitron";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText(pu.text, pu.x + pu.width / 2, pu.y + pu.height / 2);
+        
+        ctx.globalAlpha = 1.0;
+        ctx.shadowBlur = 0;
+        ctx.closePath();
+    }
+}
+
+function renderFloatingTexts() {
+    for (let ft of gameState.floatingTexts) {
+        ctx.globalAlpha = Math.max(0, ft.alpha);
+        ctx.fillStyle = ft.color;
+        ctx.shadowColor = ft.color;
+        ctx.shadowBlur = 10;
+        ctx.font = "bold 16px Orbitron";
+        ctx.textAlign = "center";
+        ctx.fillText(ft.text, ft.x, ft.y);
+        ctx.globalAlpha = 1.0;
+        ctx.shadowBlur = 0;
+    }
 }
 
 function renderBall() {
@@ -252,7 +404,7 @@ function renderBall() {
 
 function renderPaddle() {
     ctx.beginPath();
-    ctx.roundRect(paddle.x, paddle.y, GAME_CONFIG.PADDLE.WIDTH, GAME_CONFIG.PADDLE.HEIGHT, 8);
+    ctx.roundRect(paddle.x, paddle.y, paddle.width, GAME_CONFIG.PADDLE.HEIGHT, 8);
     ctx.fillStyle = "rgba(255, 255, 255, 0.8)";
     ctx.shadowColor = "rgba(255, 255, 255, 0.5)";
     ctx.shadowBlur = 15;
@@ -318,6 +470,10 @@ function startNewGame() {
     
     gameState.score = 0;
     gameState.lives = GAME_CONFIG.GAME.INITIAL_LIVES;
+    gameState.powerUps = [];
+    gameState.activeEffects = [];
+    gameState.floatingTexts = [];
+    paddle.width = GAME_CONFIG.PADDLE.WIDTH;
     UI.score.innerText = gameState.score;
     UI.lives.innerText = gameState.lives;
     

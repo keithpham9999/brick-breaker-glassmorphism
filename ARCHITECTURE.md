@@ -32,4 +32,5 @@ File logic duy nhất xử lý toàn bộ vòng lặp của game.
 - **Vật lý & Va chạm (`collisionDetection`)**: 
   - Tính toán va chạm giữa quả bóng (tọa độ tâm, bán kính) với các thành phần: tường (trái/phải/trên), thanh đỡ (paddle), gạch (bricks) và mặt phẳng dưới (đáy).
   - Khi bóng chạm paddle, tính toán vị trí va chạm để làm thay đổi góc nảy của bóng nhằm tạo cảm giác tương tác thực.
+- **Hệ thống Power-ups**: Xử lý logic rơi vật phẩm (`updatePowerUps`), áp dụng hiệu ứng giới hạn thời gian (`applyPowerUpEffect`, `updateEffects`), và vẽ giao diện chữ nổi `updateFloatingTexts`.
 - **Xử lý sự kiện (Event Handling)**: Lắng nghe `keydown`, `keyup` và `mousemove` để điều khiển paddle. Mouse giúp trải nghiệm game mượt mà hơn trên desktop.

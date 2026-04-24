@@ -27,3 +27,9 @@ Sau đó mở trình duyệt ở địa chỉ localhost do lệnh trả về (th
 2. Sử dụng **Phím mũi tên Trái / Phải** hoặc **Di chuột** để di chuyển thanh đỡ (paddle).
 3. Đỡ bóng, không để bóng rơi xuống đáy màn hình. Phá vỡ tất cả các viên gạch để giành chiến thắng.
 4. Mỗi người chơi có 3 mạng (LIVES).
+
+### Hệ thống Vật phẩm (Power-ups)
+Trong quá trình phá gạch, sẽ có tỷ lệ rơi ra các vật phẩm hỗ trợ. Hứng chúng bằng thanh đỡ để nhận hiệu ứng:
+- 🔵 **Expand (E)**: Mở rộng thanh đỡ trong 10 giây.
+- 🟡 **Speed Up (S)**: Tăng tốc độ bóng trong 10 giây.
+- 🟢 **Extra Life (L)**: Cộng thêm 1 mạng.
